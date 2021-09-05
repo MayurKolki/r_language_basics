@@ -1,0 +1,239 @@
+#inclass project 2
+#decision tree:classification
+#dataset: bankchurn
+
+library(pROC)
+library(ROCR)
+library(caret)
+library(MASS)
+library(corrplot)
+library(ROCR)
+library(ggplot2)
+library(rpart)    
+library(rpart.plot)
+path="C:/Users/mayur/Desktop/data analyst vedios/r language/machine learning/bankchurn.csv"
+
+dt=read.csv(path,header=T) #,stringsAsFactors = T)
+#file.choose()
+
+#nrow()
+View(dt)
+head(dt)
+tail(dt)
+
+dim(dt)
+
+
+#remove unwanted features
+dt$custid=NULL
+dt$surname=NULL
+View(dt)
+# check if data is all numeric
+str(dt)
+
+#seprate the number/factors
+fc=names(dt)[sapply(dt,is.character)]
+nc=names(dt)[sapply(dt,is.numeric)]
+
+
+#eda
+#1)factors
+table(dt$country)
+ 
+for (c in fc)
+{
+  print(paste("factor variable=",c))
+  print(levels(factor(unlist(dt[c]))))
+  cat("\n") #new line it doesnt work with print()
+  #for formating use cat
+}
+
+#country-merge the levels
+#spain
+dt$country[dt$country%in%c('Espanio','spain')]="Spain"
+dt$country[dt$country%in%c('Ger','germany')]="Germany"
+dt$country[dt$country%in%c('Fra','france')]="France"
+table(dt$country)
+
+str(dt$country)
+dt$country=as.factor(dt$country)
+
+#########
+
+# replace all instances of "female" / "Female" -> F
+dt$gender[dt$gender%in%c('female','Female','f')] = "F"
+
+# replace all instances of "male" / "Male" -> M
+dt$gender[dt$gender%in%c('m','Male')] = "M"
+table(dt$gender)
+# change the datatype to factor
+dt$gender = as.factor(dt$gender)
+str(dt$gender)
+######################################################################
+#convert Y variable 
+dt$churn=as.factor(dt$churn)
+nc=names(dt)[sapply(dt,is.numeric)]
+
+print(nc)
+
+#Numeric Eda
+corr=cor(dt[nc])
+corrplot(corr,method='number',type = 'lower')
+View(corr)
+
+#visualisation
+table(dt$churn)
+
+#distribution of y varaible
+barplot(table(dt$churn),xlab="churn",ylab="Count",col="blue",main="distribution of churn")
+
+
+#gender vs country 
+ggplot(dt,aes(x=country,fill=gender))+geom_bar(position = 'dodge')  #dodge giving space
+
+#churn vs country
+ggplot(dt,aes(x=country,fill=churn))+geom_bar(position ='dodge' )
+
+#split the data into train and test 
+totalrows=nrow(dt)
+ss=sample(seq(1,totalrows),floor(0.7*totalrows))
+train=dt[ss,]
+test=dt[-ss,]
+
+print(dim(train))
+print(dim(test))
+
+
+
+#build the decision tree model
+#wothout any hyperparameter tunning 
+m1=rpart(churn~.,data=train,method="class")  #class-classification because it can be used for both classification and regression.
+summary(m1)
+#visualize the decision tree
+rpart.plot(m1,type=4,extra=101,tweak = 1.5)
+#? means help
+?rpart.plot
+print(m1)
+
+
+#predict
+p1=predict(m1,test,type="class")
+p1
+table(test$churn)
+#confusionmatrtix
+confusionMatrix(test$churn,as.factor(p1),positive = "1")
+#plot the complexity parameter
+plotcp(m1)
+#complex parameter
+m1$cptable
+
+#plot the complex parametr
+plotcp(m1)
+
+
+nrow(train[train$age<43,])
+
+
+#least error
+mincp=m1$cptable[which.min(m1$cptable[,'xerror']),"CP"]
+
+print(mincp)
+
+#mincp=m1$cptable[which.min(m1$cptable[,'xerror']),"CP"]
+
+           #prune the tree model1
+m1_prune=prune(m1,mincp)
+
+#predict on the prune model
+p1_prune=predict(m1_prune,test,type="class")
+
+#confusion matrix 
+confusionMatrix(test$churn,as.factor(p1_prune),positive="1")
+#check if the post-prune model prediction are better than the pre-pruned model
+#1) both models are same- then does not matter if the tree is pruned
+#2) post-pruned model gives better result than the pre-pruned modee->>retain the post-pruned model
+
+
+#how to test for variable importance
+data.frame(score=m1$variable.importance)
+
+
+
+#churn$country=as.factor(churn$country)
+
+##########################3
+#decision tree model with hyperparameter tunning
+
+?rpart.control
+
+m2=rpart(churn~creditscore+country+gender+age+tenure+balance+active+salary,data=train,method="class",minsplit=20,cp=0.05,maxdepth=2)
+colnames(dt)
+
+#visualie the tree 
+rpart.plot(m2,type=4,extra=101,tweak = 1.2)
+
+#predict
+p2=predict(m2,test,type="class")
+
+#confusionmatrix
+confusionMatrix(test$churn,as.factor(p2),positive="1")
+
+##############################################################################
+###############################################################
+#build the ;ogistic regression model 
+m1=glm(churn~.,data=train,binomial(link="logit"))
+summary(m1)
+
+#prdiction
+p1=predict(m1,test,type="response")
+p1[1:10]
+
+table(test$churn) #check actual and predicted with the help of table to verifty which is actual and predected
+
+length(p1[p1<0.5])
+length(p1[p1>0.5])
+
+
+#convert the probabilities to class 0 and 1
+pred1=ifelse(p1<0.5,0,1)
+
+#confusion matrix and classification report
+
+confusionMatrix(test$churn,as.factor(pred1),positive = "1")
+
+confusionMatrix(as.factor(pred1),test$churn,positive="1")
+#ROC/AUC
+preds=prediction(p1,test$churn)
+auc=performance(preds,"auc")
+auc=round(unlist(slot(auc,"y.values")),2)
+
+pref=performance(preds,"tpr","fpr")
+
+plot(pref,colorize=T,main="ROC curve",ylab="sensitivity",
+     xlab="1-specificty")
+legend(x=0.36,y=0.1,paste("AUC=",auc),cex=1)
+abline(a=0,b=1,col="red")
+
+#m2:if the feature "active is treated AS  a factor variable
+#removed 'salary ' and 'tensure'
+m2=glm(churn~creditscore+country+gender+age+balance+as.factor(active),data=train,binomial(link="logit"))
+summary(m2)
+
+p2=predict(m2,test,type="response")
+#convert the probabilities  to classes 0 and 1
+pred2=ifelse(p2<0.5,0,1)
+
+#confusion matrix and classification report
+confusionMatrix(test$churn,as.factor(pred2),positive = "1")
+
+table(bc$churn)
+
+# functions to check Nulls/0
+checkNull=function(x) return(any(is.na(x)))
+checkzero=function(x) return(any(x==0))
+
+# EDA
+colnames(houseprice)[apply(houseprice,2,checkNull)]
+colnames(houseprice)[apply(houseprice,2,checkzero)]
+
+

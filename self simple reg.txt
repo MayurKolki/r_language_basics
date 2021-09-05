@@ -1,0 +1,441 @@
+data=read.csv(file.choose(),header = TRUE)
+View(data)
+head(data)
+tail(data)
+dim(data)
+str(data)
+library(funModeling)
+
+# functions to check Nulls/0
+checkNull=function(x) return(any(is.na(x)))
+checkzero=function(x) return(any(x==0))
+
+# EDA
+colnames(data)[apply(data,2,checkNull)]
+colnames(data)[apply(data,2,checkzero)]
+table(data$State)
+data$State=NULL
+freq(data$State)
+View(data)
+###################################################################
+
+cols=colnames(data)[1:4]
+cols
+
+# check the distribution of X
+for (c in cols) {
+  title= paste("histogram for",c)
+  hist(unlist(data[c]),main=title,col='yellow')
+}
+
+
+
+# check for outliers
+
+for (c in cols) {
+  title= paste("boxplot for",c)
+  boxplot(unlist(data[c]),main= "title",col = "red",horizontal = T)
+  
+}
+
+nrow(ccpp[ccpp$amb_pres<1000,])
+nrow(ccpp[ccpp$amb_pres>1030,])
+#cq=ccpp$amb_pres<1000
+#nchar(cq)
+#print(nchar[cq])
+
+library(moments)
+
+#agostaino-pearson test for normality
+#h0= normal distribution
+#h1= skewed distribution
+at=agostino.test(ccpp$temp)
+if(at$p.value<0.05)
+  print("not a normal distribution") else
+    print("normal distribution")
+
+
+#check for multilinear
+corr=cor(ccpp[cols])
+corrplot(corr,method = "number",type = "lower")
+
+# generate 70% data
+totalrows = nrow(ccpp)
+print(totalrows)
+
+ss2 = sample(seq(1,totalrows),floor(0.7*totalrows))
+
+# get the train and test data
+train = ccpp[ss2,]
+test = ccpp[-ss2,]
+View(train)
+print(paste("train=",dim(train),"test=",dim(test)))
+
+head(train)
+head(test)
+
+# build the linear regression model
+m12 = lm(elec_energy~temp+exhaust_vacumn+amb_pres+rel_humidity, data=train)
+m12
+
+
+# m1 = lm(elec_energy ~ .)
+summary(m12)
+
+
+#asump validatn
+plot(m12)
+
+
+#mean of residual is 0
+mean(m12$residuals)
+
+
+#test for hrtroscedasticity
+#1 breush-pagan test
+#install.packages("lmtest",dependencies = T)
+#install.packages("car",dependencies = T)
+
+
+#H0: homoscedastic
+#H1: hetroscedastic
+library(lmtest)
+ret7= bptest(m12)
+if(ret7$p.value<0.05)
+  print('model is hetro') else
+    print('model is homo')
+
+
+#ncv(non constant variance) test
+library(car)
+ret7=ncvTest(m12)
+if(ret7$p<0.05)
+  print('model is hetro') else
+    print('model is homo')
+
+
+# predict the Y on the test data
+p17 = predict(m12,test)
+RMSE(test$elec_energy,p17)
+p17[1:10]
+
+# create a dataframe to store the actual Y and predicted Y
+result=data.frame('actual'= test$elec_energy,
+                  'predicted' = round(p17,2))
+
+head(result,25)
+
+# calculate the error/sse
+result$err=result$actual-result$predicted
+head(result)  
+result$se = result$err^2
+
+head(result)
+
+# SSE
+sse = sum(result$se)
+sse
+# MSE (mean squared errors)
+mse = sse/nrow(test)
+mse
+
+# RMSE (root mean sq err)
+rmse = sqrt(mse)
+print(rmse)
+
+
+
+#since the model is (m12) is hetroscedastic 
+#do a box cox y variable
+library(MASS)
+bct= boxcox(elec_energy~temp+exhaust_vacumn+amb_pres+rel_humidity,data=train)
+print(bct)
+
+
+
+
+#to get the optimal lambda value,
+
+#1) find the max y
+which(bct$y==max(bct$y))
+#2) for the max y, get the corresponding lamda(x)
+lambda=bct$x[which((bct$y==max(bct$y)))]
+lambda
+#transform the y variable  into boxcox transformation
+#store the 2 value in train & test dataframe
+train
+train$y_bct=train$elec_energy^lambda
+
+test
+test$y_bct= test$elec_energy^lambda
+
+
+head(train)
+head(test)
+
+# model 2
+
+
+
+
+
+##model 2
+#x: as it is
+#y: boxcox transformed value
+m22= lm(y_bct~temp+exhaust_vacumn+amb_pres+rel_humidity,data=train) 
+m22
+
+summary(m22)
+
+#check assumption
+plot(m22)
+
+
+ret7= bptest(m22)
+if(ret7$p.value<0.05)
+  print('model is hetro') else
+    print('model is homo')
+
+
+#ncv(non constant variance) test
+
+ret7=ncvTest(m22)
+if(ret7$p<0.05)
+  print('model is hetro') else
+    print('model is homo')
+#predict
+p27=predict(m22,test)
+p27
+head(p27)
+
+#predicted values are in boxcox format 
+#need to re-transform this in the original form
+
+
+p27[1]^(1/lambda)
+
+df2=data.frame("actual"=test$elec_energy,"pred"=p27^(1/lambda))
+
+#RMDE model M2
+
+library(caret)
+rmse2=RMSE(df2$actual,df2$pred)
+cat("M1:RMSE=",rmse,"\nM2: RMSE=",rmse2)
+
+##################################################################
+
+#  model m3
+m33 = lm(elec_energy~exhaust_vacumn+amb_pres+rel_humidity, data=train)
+m33
+
+
+# m1 = lm(elec_energy ~ .)
+summary(m33)
+
+
+#asump validatn
+plot(m33)
+
+
+#mean of residual is 0
+mean(m33$residuals)
+
+
+#test for hrtroscedasticity
+#1 breush-pagan test
+#install.packages("lmtest",dependencies = T)
+#install.packages("car",dependencies = T)
+
+
+#H0: homoscedastic
+#H1: hetroscedastic
+library(lmtest)
+ret33= bptest(m33)
+if(ret33$p.value<0.05)
+  print('model is hetro') else
+    print('model is homo')
+
+
+#ncv(non constant variance) test
+library(car)
+ret33=ncvTest(m33)
+if(ret33$p<0.05)
+  print('model is hetro') else
+    print('model is homo')
+
+
+# predict the Y on the test data
+p33 = predict(m33,test)
+RMSE(test$elec_energy,p33)
+p33[1:10]
+
+# create a dataframe to store the actual Y and predicted Y
+result33=data.frame('actual'= test$elec_energy,
+                    'predicted' = round(p33,2))
+
+head(result33,25)
+
+# calculate the error/sse
+result33$err=result33$actual-result33$predicted
+head(result33)  
+result33$se = result33$err^2
+
+head(result33)
+
+# SSE
+sse33 = sum(result33$se)
+sse33
+# MSE (mean squared errors)
+mse33 = sse33/nrow(test)
+mse33
+
+# RMSE (root mean sq err)
+rmse33 = sqrt(mse33)
+print(rmse33)
+
+################################################################
+
+# build the linear regression model
+m44 = lm(elec_energy~temp+amb_pres+rel_humidity, data=train)
+m44
+
+
+# m1 = lm(elec_energy ~ .)
+summary(m44)
+
+
+#asump validatn
+plot(m44)
+
+
+#mean of residual is 0
+mean(m44$residuals)
+
+
+#test for hrtroscedasticity
+#1 breush-pagan test
+#install.packages("lmtest",dependencies = T)
+#install.packages("car",dependencies = T)
+
+
+#H0: homoscedastic
+#H1: hetroscedastic
+library(lmtest)
+ret7= bptest(m12)
+if(ret7$p.value<0.05)
+  print('model is hetro') else
+    print('model is homo')
+
+
+#ncv(non constant variance) test
+library(car)
+ret44=ncvTest(m44)
+if(ret44$p<0.05)
+  print('model is hetro') else
+    print('model is homo')
+
+
+# predict the Y on the test data
+p44= predict(m44,test)
+RMSE(test$elec_energy,p44)
+p44[1:10]
+
+# create a dataframe to store the actual Y and predicted Y
+result44=data.frame('actual'= test$elec_energy,
+                    'predicted' = round(p44,2))
+
+head(result44,25)
+
+# calculate the error/sse
+result44$err=result44$actual-result44$predicted
+head(result44)  
+result44$se = result44$err^2
+
+head(result44)
+
+# SSE
+sse44 = sum(result44$se)
+sse44
+# MSE (mean squared errors)
+mse44 = sse44/nrow(test)
+mse44
+
+# RMSE (root mean sq err)
+rmse44 = sqrt(mse44)
+print(rmse44)
+
+#######################################################################
+
+tempvacum= col(temp+exhaust_vacumn)
+
+tempvacum=cbind(ccpp,"temp","exhaust_vacumn")
+
+# build the linear regression model
+m55 = lm(elec_energy~tempvacum+amb_pres+rel_humidity, data=train)
+m55
+
+
+# m1 = lm(elec_energy ~ .)
+summary(m55)
+
+
+#asump validatn
+plot(m55)
+
+
+#mean of residual is 0
+mean(m55$residuals)
+
+
+#test for hrtroscedasticity
+#1 breush-pagan test
+#install.packages("lmtest",dependencies = T)
+#install.packages("car",dependencies = T)
+
+
+#H0: homoscedastic
+#H1: hetroscedastic
+library(lmtest)
+ret55= bptest(m55)
+if(ret55$p.value<0.05)
+  print('model is hetro') else
+    print('model is homo')
+
+
+#ncv(non constant variance) test
+library(car)
+ret55=ncvTest(m55)
+if(ret55$p<0.05)
+  print('model is hetro') else
+    print('model is homo')
+
+
+# predict the Y on the test data
+p55 = predict(m55,test)
+RMSE(test$elec_energy,p55)
+p55[1:10]
+
+# create a dataframe to store the actual Y and predicted Y
+result55=data.frame('actual'= test$elec_energy,
+                    'predicted' = round(p55,2))
+
+head(result55,25)
+
+# calculate the error/sse
+result55$err=result55$actual-result55$predicted
+head(result55)  
+result55$se = result55$err^2
+
+head(result55)
+
+# SSE
+sse55 = sum(result55$se)
+sse55
+# MSE (mean squared errors)
+mse55 = sse55/nrow(test)
+mse55
+
+# RMSE (root mean sq err)
+rmse55 = sqrt(mse55)
+print(rmse55)
+

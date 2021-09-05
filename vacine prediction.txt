@@ -1,0 +1,574 @@
+#decision tree:classification
+#dataset: bankchurn
+
+library(pROC)
+library(ROCR)
+library(caret)
+library(MASS)
+library(corrplot)
+library(ROCR)
+library(ggplot2)
+library(rpart)
+library(rpart.plot)
+path="C:/Users/mayur/Desktop/data analyst vedios/r language/machine learning/h1n1_vaccine_prediction.csv"
+
+h1n1=read.csv(path,header=T) #,stringsAsFactors = T)
+#file.choose()
+
+#nrow()
+View(h1n1)
+head(h1n1)
+tail(h1n1)
+
+dim(h1n1)
+
+str(h1n1)
+
+fc=names(h1n1)[sapply(h1n1,is.character)]
+nc=names(h1n1)[sapply(h1n1,is.numeric)]
+fc
+nc
+
+# functions to check Nulls/0
+checkNull=function(x) return(any(is.na(x)))
+checkzero=function(x) return(any(x==0))
+
+# EDA
+colnames(h1n1)[apply(h1n1,2,checkNull)]
+colnames(h1n1)[apply(h1n1,2,checkzero)]
+
+nc[apply(h1n1[nc],2,checkzero)]
+colnames(h1n1)
+##############################################################
+View(h1n1$h1n1_worry)
+table(h1n1$h1n1_worry)
+which(is.na(h1n1$h1n1_worry))
+length(which(is.na(h1n1$h1n1_worry)))
+
+# identify the rows that have NULL values for abs_month
+nullrow= as.integer(rownames(h1n1[is.na(h1n1$h1n1_worry),]))
+print(nullrow)
+
+
+
+# update the NULL values with the mean value
+h1n1$h1n1_worry[nullrow] = 2
+
+# verify the update
+h1n1$h1n1_worry[nullrow]
+
+str(h1n1$h1n1_worry)
+##############################
+####
+###
+str(dataset)
+
+str(h1n1$is_h1n1_vacc_effective)
+table(h1n1$is_h1n1_vacc_effective)
+unique(h1n1$is_h1n1_vacc_effective)
+
+
+unique(h1n1$bought_face_mask)
+
+####################################################
+
+table(h1n1$h1n1_awareness)
+which(is.na(h1n1$h1n1_awareness))
+length(which(is.na(h1n1$h1n1_awareness)))
+
+# identify the rows that have NULL values for abs_month
+nullrow1= as.integer(rownames(h1n1[is.na(h1n1$h1n1_awareness),]))
+print(nullrow1)
+
+
+# update the NULL values with the mean value
+h1n1$h1n1_awareness[nullrow1] = 1
+
+# verify the update
+h1n1$h1n1_awareness[nullrow1]
+
+str(h1n1$h1n1_awareness)
+
+str(dataset)
+
+#############################################################
+
+
+
+table(h1n1$antiviral_medication)
+which(is.na(h1n1$antiviral_medication))
+length(which(is.na(h1n1$antiviral_medication)))
+
+# identify the rows that have NULL values for abs_month
+nullrow2= as.integer(rownames(h1n1[is.na(h1n1$antiviral_medication),]))
+print(nullrow2)
+
+
+# update the NULL values with the mean value
+h1n1$antiviral_medication[nullrow2] = 0
+
+# verify the update
+h1n1$antiviral_medication[nullrow2]
+
+str(h1n1$antiviral_medication)
+View(h1n1$antiviral_medication)
+str(dataset)
+
+
+#################################################
+
+
+table(h1n1$contact_avoidance)
+which(is.na(h1n1$contact_avoidance))
+length(which(is.na(h1n1$contact_avoidance)))
+# identify the rows that have NULL values for abs_month
+nullrow3= as.integer(rownames(h1n1[is.na(h1n1$contact_avoidance),]))
+print(nullrow3)
+
+
+# update the NULL values with the mean value
+h1n1$contact_avoidance[nullrow3] = 1
+
+# verify the update
+h1n1$contact_avoidance[nullrow3]
+
+str(h1n1$contact_avoidance)
+View(h1n1$antiviral_medication)
+
+
+
+######################################
+
+
+table(h1n1$bought_face_mask)
+which(is.na(h1n1$bought_face_mask))
+
+# identify the rows that have NULL values for abs_month
+nullrow4= as.integer(rownames(h1n1[is.na(h1n1$bought_face_mask),]))
+print(nullrow4)
+
+
+# update the NULL values with the mean value
+h1n1$bought_face_mask[nullrow4] = 0
+
+# verify the update
+h1n1$bought_face_mask[nullrow4]
+
+str(h1n1)
+View(h1n1$bought_face_mask)
+
+
+
+
+
+
+
+###############################################################
+table(h1n1$wash_hands_frequently)
+which(is.na(h1n1$wash_hands_frequently))
+
+
+# identify the rows that have NULL values for abs_month
+nullrow5= as.integer(rownames(h1n1[is.na(h1n1$wash_hands_frequently),]))
+print(nullrow5)
+
+
+# update the NULL values with the mean value
+h1n1$wash_hands_frequently[nullrow5] = 1
+
+# verify the update
+h1n1$wash_hands_frequently[nullrow5]
+
+str(h1n1$wash_hands_frequently)
+View(h1n1$wash_hands_frequently)
+
+
+
+
+#############################################################
+
+
+
+table(h1n1$avoid_large_gatherings)
+which(is.na(h1n1$avoid_large_gatherings))
+
+# identify the rows that have NULL values for abs_month
+nullrow6= as.integer(rownames(h1n1[is.na(h1n1$avoid_large_gatherings),]))
+print(nullrow6)
+
+
+# update the NULL values with the mean value
+h1n1$avoid_large_gatherings[nullrow6] = 0
+
+# verify the update
+h1n1$avoid_large_gatherings[nullrow6]
+
+str(h1n1$avoid_large_gatherings)
+View(h1n1$avoid_large_gatherings)
+length(h1n1$avoid_large_gatherings)
+
+
+###################################################
+table(h1n1$reduced_outside_home_cont)
+which(is.na(h1n1$reduced_outside_home_cont))
+length(which(is.na(h1n1$reduced_outside_home_cont)))
+# identify the rows that have NULL values for abs_month
+nullrow7= as.integer(rownames(h1n1[is.na(h1n1$reduced_outside_home_cont),]))
+print(nullrow7)
+# update the NULL values with the mean value
+h1n1$reduced_outside_home_cont[nullrow7] = 0
+# verify the update
+h1n1$reduced_outside_home_cont[nullrow7]
+str(h1n1$reduced_outside_home_cont)
+
+#############################################
+table(h1n1$avoid_touch_face)
+which(is.na(h1n1$avoid_touch_face))
+length(which(is.na(h1n1$avoid_touch_face)))
+# identify the rows that have NULL values for abs_month
+nullrow8= as.integer(rownames(h1n1[is.na(h1n1$avoid_touch_face),]))
+print(nullrow8)
+# update the NULL values with the mean value
+h1n1$avoid_touch_face[nullrow8] = 1
+# verify the update
+h1n1$avoid_touch_face[nullrow8]
+str(h1n1$avoid_touch_face)
+###################################################################
+table(h1n1$dr_recc_h1n1_vacc)
+which(is.na(h1n1$dr_recc_h1n1_vacc))
+length(which(is.na(h1n1$dr_recc_h1n1_vacc)))
+# identify the rows that have NULL values for abs_month
+nullrow9= as.integer(rownames(h1n1[is.na(h1n1$dr_recc_h1n1_vacc),]))
+print(nullrow9)
+# update the NULL values with the mean value
+h1n1$dr_recc_h1n1_vacc[nullrow9] = 0
+# verify the update
+h1n1$dr_recc_h1n1_vacc[nullrow9]
+str(h1n1$dr_recc_h1n1_vacc)
+
+#######################################################
+
+table(h1n1$dr_recc_seasonal_vacc)
+which(is.na(h1n1$dr_recc_seasonal_vacc))
+length(which(is.na(h1n1$dr_recc_seasonal_vacc)))
+# identify the rows that have NULL values for abs_month
+nullrow10= as.integer(rownames(h1n1[is.na(h1n1$dr_recc_seasonal_vacc),]))
+print(nullrow10)
+# update the NULL values with the mean value
+h1n1$dr_recc_seasonal_vacc[nullrow10] = 0
+# verify the update
+h1n1$dr_recc_seasonal_vacc[nullrow10]
+str(h1n1$dr_recc_seasonal_vacc)
+
+
+####################################################
+#h1n1$chronic_medic_condition
+table(h1n1$chronic_medic_condition)
+which(is.na(h1n1$chronic_medic_condition))
+length(which(is.na(h1n1$chronic_medic_condition)))
+# identify the rows that have NULL values for abs_month
+nullrow11= as.integer(rownames(h1n1[is.na(h1n1$chronic_medic_condition),]))
+print(nullrow11)
+# update the NULL values with the mean value
+h1n1$chronic_medic_condition[nullrow11] = 0
+# verify the update
+h1n1$chronic_medic_condition[nullrow11]
+str(h1n1$chronic_medic_condition)
+
+
+##########################################################################
+#h1n1$cont_child_undr_6_mnths
+table(h1n1$cont_child_undr_6_mnths)
+which(is.na(h1n1$cont_child_undr_6_mnths))
+length(which(is.na(h1n1$cont_child_undr_6_mnths)))
+# identify the rows that have NULL values for abs_month
+nullrow12= as.integer(rownames(h1n1[is.na(h1n1$cont_child_undr_6_mnths),]))
+print(nullrow12)
+# update the NULL values with the mean value
+h1n1$cont_child_undr_6_mnths[nullrow12] = 0
+# verify the update
+h1n1$cont_child_undr_6_mnths[nullrow12]
+str(h1n1$cont_child_undr_6_mnths)
+
+#########################################################################
+#h1n1$is_health_worker
+table(h1n1$is_health_worker)
+which(is.na(h1n1$is_health_worker))
+length(which(is.na(h1n1$is_health_worker)))
+# identify the rows that have NULL values for abs_month
+nullrow13= as.integer(rownames(h1n1[is.na(h1n1$is_health_worker),]))
+print(nullrow13)
+# update the NULL values with the mean value
+h1n1$is_health_worker[nullrow13] = 0
+# verify the update
+h1n1$is_health_worker[nullrow13]
+str(h1n1$is_health_worker)
+
+########################################################################
+#h1n1$has_health_insur 
+table(h1n1$has_health_insur)
+which(is.na(h1n1$has_health_insur))
+length(which(is.na(h1n1$has_health_insur)))
+# identify the rows that have NULL values for abs_month
+nullrow14= as.integer(rownames(h1n1[is.na(h1n1$has_health_insur),]))
+print(nullrow14)
+# update the NULL values with the mean value
+h1n1$has_health_insur[nullrow14] = 1
+# verify the update
+h1n1$has_health_insur[nullrow14]
+str(h1n1$has_health_insur)
+#more null we should reject it
+###############################################
+#h1n1$is_h1n1_vacc_effective
+table(h1n1$is_h1n1_vacc_effective)
+which(is.na(h1n1$is_h1n1_vacc_effective))
+length(which(is.na(h1n1$is_h1n1_vacc_effective)))
+# identify the rows that have NULL values for abs_month
+nullrow15= as.integer(rownames(h1n1[is.na(h1n1$is_h1n1_vacc_effective),]))
+print(nullrow15)
+# update the NULL values with the mean value
+h1n1$is_h1n1_vacc_effective[nullrow15] = 4
+# verify the update
+h1n1$is_h1n1_vacc_effective[nullrow15]
+str(h1n1$is_h1n1_vacc_effective)
+#####################################################
+#h1n1$is_h1n1_risky    
+table(h1n1$is_h1n1_risky)
+which(is.na(h1n1$is_h1n1_risky))
+length(which(is.na(h1n1$is_h1n1_risky)))
+# identify the rows that have NULL values for abs_month
+nullrow16= as.integer(rownames(h1n1[is.na(h1n1$is_h1n1_risky),]))
+print(nullrow16)
+# update the NULL values with the mean value
+h1n1$is_h1n1_risky[nullrow16] = 2
+# verify the update
+h1n1$is_h1n1_risky[nullrow16]
+str(h1n1$is_h1n1_risky)
+
+##############################################
+#h1n1$sick_from_h1n1_vacc
+table(h1n1$sick_from_h1n1_vacc)
+which(is.na(h1n1$sick_from_h1n1_vacc))
+length(which(is.na(h1n1$sick_from_h1n1_vacc)))
+# identify the rows that have NULL values for abs_month
+nullrow17= as.integer(rownames(h1n1[is.na(h1n1$sick_from_h1n1_vacc),]))
+print(nullrow17)
+# update the NULL values with the mean value
+h1n1$sick_from_h1n1_vacc[nullrow17] = 2
+# verify the update
+h1n1$sick_from_h1n1_vacc[nullrow17]
+str(h1n1$sick_from_h1n1_vacc)
+
+########################################################
+#h1n1$is_seas_vacc_effective  
+table(h1n1$is_seas_vacc_effective)
+which(is.na(h1n1$is_seas_vacc_effective))
+length(which(is.na(h1n1$is_seas_vacc_effective)))
+# identify the rows that have NULL values for abs_month
+nullrow18= as.integer(rownames(h1n1[is.na(h1n1$is_seas_vacc_effective),]))
+print(nullrow18)
+# update the NULL values with the mean value
+h1n1$is_seas_vacc_effective[nullrow18] = 4
+# verify the update
+h1n1$is_seas_vacc_effective[nullrow18]
+str(h1n1$is_seas_vacc_effective)
+
+############################################
+#h1n1$is_seas_risky
+table(h1n1$is_seas_risky)
+which(is.na(h1n1$is_seas_risky))
+length(which(is.na(h1n1$is_seas_risky)))
+# identify the rows that have NULL values for abs_month
+nullrow19= as.integer(rownames(h1n1[is.na(h1n1$is_seas_risky),]))
+print(nullrow19)
+# update the NULL values with the mean value
+h1n1$is_seas_risky[nullrow19] = 2
+# verify the update
+h1n1$is_seas_risky[nullrow19]
+str(h1n1$is_seas_risky)
+
+##############################################
+#h1n1$sick_from_seas_vacc
+table(h1n1$sick_from_seas_vacc)
+which(is.na(h1n1$sick_from_seas_vacc))
+length(which(is.na(h1n1$sick_from_seas_vacc)))
+# identify the rows that have NULL values for abs_month
+nullrow20= as.integer(rownames(h1n1[is.na(h1n1$sick_from_seas_vacc),]))
+print(nullrow20)
+# update the NULL values with the mean value
+h1n1$sick_from_seas_vacc[nullrow20] = 1
+# verify the update
+h1n1$sick_from_seas_vacc[nullrow20]
+str(h1n1$sick_from_seas_vacc)
+#####################################################
+#h1n1$no_of_adults
+table(h1n1$no_of_adults)
+which(is.na(h1n1$no_of_adults))
+length(which(is.na(h1n1$no_of_adults)))
+# identify the rows that have NULL values for abs_month
+nullrow21= as.integer(rownames(h1n1[is.na(h1n1$no_of_adults),]))
+print(nullrow21)
+# update the NULL values with the mean value
+h1n1$no_of_adults[nullrow21] = 1
+# verify the update
+h1n1$no_of_adults[nullrow21]
+str(h1n1$no_of_adults)
+#######################################
+#h1n1$no_of_children         
+table(h1n1$no_of_children)
+which(is.na(h1n1$no_of_children))
+length(which(is.na(h1n1$no_of_children)))
+# identify the rows that have NULL values for abs_month
+nullrow22= as.integer(rownames(h1n1[is.na(h1n1$no_of_children),]))
+print(nullrow22)
+# update the NULL values with the mean value
+h1n1$no_of_children[nullrow22] = 0
+# verify the update
+h1n1$no_of_children[nullrow22]
+str(h1n1$no_of_children)
+
+#############################################
+
+colnames(h1n1)[apply(h1n1,2,checkNull)]
+######################################
+View(h1n1)
+
+h1n1$unique_id=NULL
+
+
+table(h1n1$h1n1_vaccine)
+
+table(h1n1$qualification)
+
+which(is.na(h1n1$qualification))
+
+typeof(h1n1$qualification)
+
+str(h1n1$qualification)
+#########################################################################
+str(h1n1$h1n1_vaccine)
+#convert Y variable 
+h1n1$h1n1_vaccine=as.factor(h1n1$h1n1_vaccine)
+
+#seprate the number/factors
+ch=names(h1n1)[sapply(h1n1,is.character)]
+ch
+nc=names(h1n1)[sapply(h1n1,is.numeric)]
+nc
+fc=names(h1n1)[sapply(h1n1,is.factor)]
+fc
+
+print(nc)
+
+#Numeric Eda
+corr=cor(h1n1[nc])
+corrplot(corr,method='number',type = 'lower')
+View(corr)
+
+#visualisation
+table(h1n1$h1n1_vaccine)
+
+#distribution of y varaible
+barplot(table(h1n1$h1n1_vaccine),xlab="vaccine",ylab="Count",col="blue",main="h1n1_vaccine")
+colnames(h1n1)
+
+
+#split the data into train and test 
+totalrows=nrow(h1n1)
+ss=sample(seq(1,totalrows),floor(0.7*totalrows))
+train=h1n1[ss,]
+test=h1n1[-ss,]
+
+print(dim(train))
+print(dim(test))
+
+
+
+#build the decision tree model
+#wothout any hyperparameter tunning 
+m1=rpart(h1n1_vaccine~.,data=train,method="class")  #class-classification because it can be used for both classification and regression.
+summary(m1)
+#visualize the decision tree
+rpart.plot(m1,type=4,extra=101,tweak = 1.5)
+#? means help
+?rpart.plot
+print(m1)
+
+
+#predict
+p1=predict(m1,test,type="class")
+p1
+table(test$h1n1_vaccine)
+#confusionmatrtix
+confusionMatrix(test$h1n1_vaccine,as.factor(p1),positive = "1")
+#plot the complexity parameter
+plotcp(m1)
+#complex parameter
+m1$cptable
+
+#plot the complex parametr
+plotcp(m1)
+
+
+
+
+#least error
+mincp=m1$cptable[which.min(m1$cptable[,'xerror']),"CP"]
+
+print(mincp)
+
+#mincp=m1$cptable[which.min(m1$cptable[,'xerror']),"CP"]
+
+#prune the tree model1
+m1_prune=prune(m1,mincp)
+
+#predict on the prune model
+p1_prune=predict(m1_prune,test,type="class")
+
+#confusion matrix 
+confusionMatrix(test$h1n1_vaccine,as.factor(p1_prune),positive="1")
+#check if the post-prune model prediction are better than the pre-pruned model
+#1) both models are same- then does not matter if the tree is pruned
+#2) post-pruned model gives better result than the pre-pruned modee->>retain the post-pruned model
+
+
+#how to test for variable importance
+data.frame(score=m1$variable.importance)
+
+
+
+#churn$country=as.factor(churn$country)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#############################################################
+cols=colnames(h1n1)[1:32]
+cols
+
+# check the distribution of X
+for (c in cols) {
+  title= paste("histogram for",c)
+  hist(unlist(data[c]),main=title,col='yellow')
+}
+
+
+
+# check for outliers
+
+for (c in cols) {
+  title= paste("boxplot for",c)
+  boxplot(unlist(data[c]),main= "title",col = "red",horizontal = T)
+  
+}
+######################################################################
